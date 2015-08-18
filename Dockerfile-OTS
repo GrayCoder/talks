@@ -1,0 +1,29 @@
+#FROM DEBIAN
+
+FROM debian
+
+RUN mkdir /sources
+WORKDIR /sources
+RUN apt-get update && apt-get install -y curl build-essential ntp libyaml-dev libevent-dev zlib1g zlib1g-dev openssl libssl-dev libxml2 libreadline-gplv2-dev \
+&& curl -O ftp://ftp.ruby-lang.org/pub/ruby/1.9/ruby-1.9.3-p362.tar.gz \
+&& tar xzf ruby-1.9.3-p362.tar.gz
+
+WORKDIR /sources/ruby-1.9.3-p362/
+RUN pwd && ls .. -al && ./configure && make && make install && gem install bundler
+
+WORKDIR /sources
+RUN curl -O http://download.redis.io/releases/redis-2.6.17.tar.gz && tar xzf redis-2.6.17.tar.gz
+
+WORKDIR redis-2.6.17
+RUN make && make install
+
+WORKDIR /
+RUN apt-get -y install git && git clone https://github.com/onetimesecret/onetimesecret.git
+
+WORKDIR /onetimesecret
+RUN bundle install --frozen --deployment --without=dev \
+&& mkdir -p /var/log/onetime /var/run/onetime /var/lib/onetime /etc/onetime \
+&& bin/ots init \
+RUN cp /onetimesecret/etc/* /etc/onetime/
+
+CMD ["redis-server", "/onetimesecret/etc/redis.conf", "&&" "bundle", "exec", "thin", "-e", "dev", "-R", "/onetimesecret/config.ru", "-p", "7143", "start"] 
