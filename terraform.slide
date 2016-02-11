@@ -1,0 +1,61 @@
+Terraform Brownbag
+11 Feb 2016
+
+Patrick Gray
+DevOps
+
+* What is Terraform?
+.image images/terra.png 250 _
+Terraform is a tool that consumes a unified configuration language, and produces infrastructure in "the cloud"
+- Provides state versioning and planning
+- Simplifies how one describes resources
+- Provides at-rest view into what is in AWS/DO/AZURE/etc.
+
+* How does Terraform work?
+- Dependency Graph
+- JSON
+- .tf Files!
+- Go binaries
+- Whatever viscera your API might need as a file (AWS Policies, instance cloud-configs, SSL certs, etc.)
+- "It's a very convenient way to shuttle strings around"
+
+* DEMO (cron_runner.tf)
+  resource "aws_route53_record" "cron_runner" {
+    zone_id = "${aws_route53_zone.primary_subdomain_hosted_zone.zone_id}"
+    name = "cron-runner"
+    type = "A"
+    ttl = 300
+    records = [ "${aws_instance.cron_runner.private_ip}" ]
+  }
+
+  resource "aws_instance" "cron_runner" {
+    ami = "${var.coreos_ami_hvm}"
+    instance_type = "t2.medium"
+    key_name = "gsg-keypair"
+    user_data = "${file("files/cron-runner/cloud-config")}"
+    subnet_id = "${aws_subnet.1e_private.id}"
+    iam_instance_profile = "provisioner"
+    vpc_security_group_ids = [ "${aws_security_group.cf.id}" ]
+    tags = { Name = "coreos-cron-runner" }
+  }
+
+* DEMO 2 (module and remote state)
+  module "cdh-agent-1" {
+    source = "./cdh-agent"
+  
+    name = "cdh-agent-1"
+    instance_type = "m1.large"
+    ami = "${terraform_remote_state.us_east.output.ubuntu_precise_ami}"
+    key_name = "gsg-keypair"
+  
+    security_group_id = "${terraform_remote_state.us_east.output.hadoop_id}"
+    subnet_id = "${terraform_remote_state.us_east.output.1b_private_id}"
+  
+    private_ip = "172.16.16.11"
+    reverse_ip = "11.16"
+  
+    domain = "${terraform_remote_state.us_east.output.primary_domain_name}"
+    forward_zone_id = "${terraform_remote_state.us_east.output.battery_park_zone_id}"
+    reverse_zone_id = "${terraform_remote_state.us_east.output.battery_park_reverse_zone_id}"
+  }
+
