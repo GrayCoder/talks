@@ -59,3 +59,10 @@ Terraform is a tool that consumes a unified configuration language, and produces
     reverse_zone_id = "${terraform_remote_state.us_east.output.battery_park_reverse_zone_id}"
   }
 
+* Links
+- terraform.io
+- github.com/hashicorp/terraform
+- aws.amazon.com/documentation
+- github.com/Conductor/systems { stacks/battery_park/... }
+
+Talk link: github.com/graycoder/talks/terraform.slide
