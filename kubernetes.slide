@@ -1,0 +1,109 @@
+Minikube Marathon
+An overview of kubernetes, the tools we're using, and the local setup
+25 Oct 2017
+
+pgray
+infraserver
+
+* What is Kubernetes?
+.image images/kubernetes-icon.png
+"Kubernetes is an open-source system for automating deployment, scaling, and management of containerized applications.It groups containers that make up an application into logical units for easy management and discovery."
+-https://kubernetes.io
+
+* How does it work? (Master Node)
+.image images/kubernetes-cluster.png 550 _
+
+* How does it work? (Worker Node)
+.image images/kubernetes-node.png 500 _
+
+* How does it work? (Pod)
+.image images/kubernetes-pod.png 270 _
+- containers (same we use in production)
+- ip address (single per pod)
+- volumes (mounted from host/between containers/from secrets)
+- resources (requests/limits)
+
+* Pods cont. (specs)
+    spec:
+      containers:
+      - name: layer-cassandra
+        image: gcr.io/layer-build/layer-cassandra:pgray-k8s
+        env:
+        - name: SERVICE_ETCD_ENDPOINT
+          value: "service-etcd.daemons"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        ports:
+        - containerPort: 9042
+          name: cql
+          protocol: TCP
+        - containerPort: 9160
+          name: thrift
+          protocol: TCP
+        volumeMounts:
+          - mountPath: /opt/pools/
+            name: opt-pools
+          - mountPath: /opt/bin/
+            name: opt-bin
+      ...
+
+* Pods cont. (specs)
+      - name: layer-coreos
+        env:
+          - name: CLUSTER_TYPE
+            value: "kubernetes"
+        image: gcr.io/layer-build/layer-coreos:master
+        volumeMounts:
+          - mountPath: /opt/bin
+            name: opt-bin
+      volumes:
+      - name: opt-bin
+        emptyDir: {}
+      - name: opt-pools
+        hostPath:
+          path: /home/k8s/pools
+
+* How does it work? (Service)
+- cluster wide subnet of IPs
+- dns entries for service name (resolve internally via namespace)
+- round-robin load balancing
+- external load balancers configured on-demand
+
+* How does it work? (Controllers)
+- deployments (declarative updates for replicasets/pods)
+- replicasets (utilized by deployments)
+- daemonsets (run a pod on every node)
+- statefulsets (IDed services)
+
+* Helm Overview
+"Helm is a tool for managing Kubernetes charts. Charts are packages of pre-configured Kubernetes resources." - https://github.com/kubernetes/helm
+
+- templatize yaml files for deployments/daemonsets/services/etc.
+- charts are simply templatized sets of yaml files
+- CLI for CRUD actions on charts
+
+* Layer Workflow (post tool install)
+- setup environment variables (. deploy/common-commands)
+- start up minikube (minikube start)
+- pre-pull images
+- deploy the daemons/base-services we'll always need `./tools/deploy-minimum-services`
+- run `tools/routesvc` script to make `10.0.0.0/24` service subnet routeable
+- spin up services you will rely on (mostly scripted, but we can improve... e.g. `./tools/deploy-recon`)
+- create/populate a config directory locally in your projects root
+- make changes locally (could change if we can't solve mounting issue)
+- compile/run/test service with it discovering service configs in `./config`
+- git push
+
+* Editing Charts
+- make changes in [[https://github.com/layerhq/deploy/tree/master/kubernetes/charts][deploy/kubernetes/charts/$service]]
+- e.g. [[https://github.com/layerhq/deploy/blob/master/kubernetes/charts/tmc/dev-values.yaml][tmc dev yaml]]
+- test locally/stage
+- PR and get someone to check it
+
+* PayTM Specific Info.
+- datastores/queues on CoreOS
+- `tmc` on CoreOS
+- rest in kubernetes
+- `tools/paytm-helm-deploy` script for easier deploy of IDed services

@@ -1,13 +1,13 @@
-FROM nfnty/arch-mini
+FROM alpine
 
 ENV GOPATH /go
 ENV GOROOT /usr/lib/go
 ENV PATH $PATH:/go/bin
 
-RUN pacman -Syu \
-&& pacman --noconfirm -S git go mercurial \
+RUN apk update \
+&& apk add git go mercurial \
 && mkdir -p /go/bin \
-&& go get code.google.com/p/go.tools/cmd/present \
+&& go get golang.org/x/tools/cmd/present \
 && git clone https://github.com/GrayCoder/talks.git /talk
 
 WORKDIR /talk
